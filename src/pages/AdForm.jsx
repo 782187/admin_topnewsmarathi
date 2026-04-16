@@ -53,7 +53,7 @@ const AdForm = () => {
         end_date: ad.end_date.slice(0, 16),
         is_active: ad.is_active,
       });
-      setMediaPreview(ad.media_url);
+      setMediaPreview(ad.media_url?.startsWith('http') ? ad.media_url : `${import.meta.env.VITE_API_URL.replace(/\/api$/, '')}${ad.media_url}`);
       setMediaType(ad.type);
     } catch (error) {
       toast.error('Failed to fetch advertisement');

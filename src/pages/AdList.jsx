@@ -201,7 +201,7 @@ const AdList = () => {
                       <td className="px-4 py-3">
                         {ad.type === 'image' ? (
                           <img
-                            src={ad.media_url}
+                            src={ad.media_url?.startsWith('http') ? ad.media_url : `${import.meta.env.VITE_API_URL.replace(/\/api$/, '')}${ad.media_url}`}
                             alt={ad.title}
                             className="w-16 h-12 object-cover rounded"
                           />

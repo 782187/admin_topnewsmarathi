@@ -198,9 +198,9 @@ const ArticleList = () => {
                     <tr key={article.id} className={`${tableRowHover} transition-colors`}>
                       <td className="px-4 py-3">
                         {article.thumbnail ? (
-                          <img
-                            src={`${import.meta.env.VITE_API_URL.replace('/api', '')}${article.thumbnail}`}
-                            alt={article.title}
+                            <img
+                              src={`${import.meta.env.VITE_API_URL.replace(/\/api$/, '')}${article.thumbnail}`}
+                              alt={article.title}
                             className="w-16 h-12 object-cover rounded"
                           />
                         ) : (

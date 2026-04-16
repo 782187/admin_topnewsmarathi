@@ -107,7 +107,7 @@ const ArticleForm = () => {
       });
 
       if (article.thumbnail) {
-        setThumbnailPreview(`${import.meta.env.VITE_API_URL.replace('/api', '')}${article.thumbnail}`);
+        setThumbnailPreview(`${import.meta.env.VITE_API_URL.replace(/\/api$/, '')}${article.thumbnail}`);
       }
     } catch (error) {
       toast.error('Failed to fetch article');
