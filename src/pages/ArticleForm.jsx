@@ -3,7 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import ReactQuill from 'react-quill-new';
 import 'react-quill-new/dist/quill.snow.css';
-import { articleAPI, categoryAPI, cityAPI } from '../services/api';
+import { articleAPI, categoryAPI, cityAPI, authorAPI } from '../services/api';
 import AdminLayout from '../components/AdminLayout';
 import { useTheme } from '../contexts/ThemeContext';
 import { useLanguage } from '../contexts/LanguageContext';
@@ -38,6 +38,7 @@ const ArticleForm = () => {
   const [loading, setLoading] = useState(false);
   const [categories, setCategories] = useState([]);
   const [cities, setCities] = useState([]);
+  const [authors, setAuthors] = useState([]);
   const [showCategoryModal, setShowCategoryModal] = useState(false);
   const [showCityModal, setShowCityModal] = useState(false);
   const [newCategoryName, setNewCategoryName] = useState('');
@@ -52,11 +53,13 @@ const ArticleForm = () => {
     city_id: '',
     type: 'article',
     video_url: '',
+    author_id: '',
   });
 
   useEffect(() => {
     fetchCategories();
     fetchCities();
+    fetchAuthors();
     if (isEdit) {
       fetchArticle();
     }
@@ -84,6 +87,17 @@ const ArticleForm = () => {
     }
   };
 
+  const fetchAuthors = async () => {
+    try {
+      const response = await authorAPI.getAll();
+      if (response.data.success) {
+        setAuthors(response.data.data.authors);
+      }
+    } catch (error) {
+      toast.error('Failed to fetch authors');
+    }
+  };
+
   const fetchArticle = async () => {
     try {
       setLoading(true);
@@ -104,6 +118,7 @@ const ArticleForm = () => {
         city_id: article.city_id?.toString() || '',
         type: article.type || 'article',
         video_url: article.video_url || '',
+        author_id: article.author_id?.toString() || '',
       });
 
       if (article.thumbnail) {
@@ -221,6 +236,7 @@ const ArticleForm = () => {
       if (formData.city_id) data.append('city_id', formData.city_id);
       data.append('type', formData.type || 'article');
       if (formData.video_url) data.append('video_url', formData.video_url);
+      if (formData.author_id) data.append('author_id', formData.author_id);
       if (thumbnailFile) data.append('thumbnail', thumbnailFile);
 
       if (isEdit) {
@@ -314,6 +330,24 @@ const ArticleForm = () => {
                 <p className={`${textMuted} text-xs mt-1`}>{t('supportedFormats')}</p>
               </div>
             </div>
+          </div>
+
+          {/* Author */}
+          <div className={`${cardBg} rounded-lg shadow-sm border ${borderClass} p-4`}>
+            <label className={`block text-sm font-medium ${textLabel} mb-2`}>
+              {t('articleCreatedBy')}
+            </label>
+            <select
+              name="author_id"
+              value={formData.author_id}
+              onChange={handleChange}
+              className={`w-full border ${inputBg} ${inputText} rounded-lg px-4 py-3 focus:border-red-500 focus:ring-2 focus:ring-red-500/20 outline-none`}
+            >
+              <option value="">{t('selectAuthor')}</option>
+              {authors.map(author => (
+                <option key={author.id} value={author.id}>{author.name}</option>
+              ))}
+            </select>
           </div>
 
           {/* Category & City */}

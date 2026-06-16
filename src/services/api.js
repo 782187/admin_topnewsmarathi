@@ -75,6 +75,14 @@ export const articleAPI = {
   delete: (id) => api.delete(`/articles/${id}`),
 };
 
+// Authors API
+export const authorAPI = {
+  getAll: () => api.get('/authors'),
+  create: (data) => api.post('/authors', data),
+  update: (id, data) => api.put(`/authors/${id}`, data),
+  delete: (id) => api.delete(`/authors/${id}`),
+};
+
 // Ads API
 export const adsAPI = {
   getAll: (params) => api.get('/ads', { params }),

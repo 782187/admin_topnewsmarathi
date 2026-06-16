@@ -8,6 +8,7 @@ import ArticleList from './pages/ArticleList';
 import ArticleForm from './pages/ArticleForm';
 import AdList from './pages/AdList';
 import AdForm from './pages/AdForm';
+import AuthorList from './pages/AuthorList';
 import ProtectedRoute from './components/ProtectedRoute';
 import './index.css';
 
@@ -79,13 +80,21 @@ function App() {
             </ProtectedRoute>
           } 
         />
-        <Route 
-          path="/admin/ads/list" 
+        <Route
+          path="/admin/authors"
+          element={
+            <ProtectedRoute>
+              <AuthorList />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin/ads/list"
           element={
             <ProtectedRoute>
               <AdList />
             </ProtectedRoute>
-          } 
+          }
         />
         <Route 
           path="/admin/ads/create" 
