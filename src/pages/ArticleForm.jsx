@@ -24,7 +24,7 @@ const quillModules = {
 const quillFormats = [
   'header',
   'bold', 'italic', 'underline',
-  'list', 'bullet',
+  'list',
   'color',
   'link',
 ];
