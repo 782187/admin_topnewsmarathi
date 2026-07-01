@@ -78,8 +78,12 @@ export const articleAPI = {
 // Authors API
 export const authorAPI = {
   getAll: () => api.get('/authors'),
-  create: (data) => api.post('/authors', data),
-  update: (id, data) => api.put(`/authors/${id}`, data),
+  create: (formData) => api.post('/authors', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  }),
+  update: (id, formData) => api.put(`/authors/${id}`, formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  }),
   delete: (id) => api.delete(`/authors/${id}`),
 };
 

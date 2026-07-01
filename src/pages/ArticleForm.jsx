@@ -101,10 +101,9 @@ const ArticleForm = () => {
   const fetchArticle = async () => {
     try {
       setLoading(true);
-      // We need to get article by ID, but our API uses slug. Let's use the list and find
-      const response = await articleAPI.getAll({ limit: 1000 });
-      const article = response.data.data.articles.find(a => a.id === parseInt(id));
-      
+      const response = await articleAPI.getById(id);
+      const article = response.data.data.article;
+
       if (!article) {
         toast.error('Article not found');
         navigate('/admin/articles/list');
@@ -146,18 +145,17 @@ const ArticleForm = () => {
 
   const handleThumbnailChange = (e) => {
     const file = e.target.files[0];
-    if (file) {
-      if (file.size > 2 * 1024 * 1024) {
-        toast.error('File size must be less than 2MB');
-        return;
-      }
-      setThumbnailFile(file);
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setThumbnailPreview(reader.result);
-      };
-      reader.readAsDataURL(file);
+    if (!file) return;
+    if (file.size > 10 * 1024 * 1024) {
+      toast.error('File size must be less than 10MB');
+      return;
     }
+    setThumbnailFile(file);
+    const reader = new FileReader();
+    reader.onloadend = () => setThumbnailPreview(reader.result);
+    reader.readAsDataURL(file);
+    // Reset so the same file can be re-selected if needed
+    e.target.value = '';
   };
 
   const handleAddCategory = async () => {
@@ -310,25 +308,34 @@ const ArticleForm = () => {
           {/* Thumbnail */}
           <div className={`${cardBg} rounded-lg shadow-sm border ${borderClass} p-4`}>
             <label className={`block text-sm font-medium ${textLabel} mb-2`}>
-              {t('thumbnail')} (Max 2MB)
+              {t('thumbnail')}
+              <span className={`ml-2 text-xs font-normal ${textMuted}`}>Max 10MB</span>
             </label>
-            <div className="flex items-start space-x-4">
-              {thumbnailPreview && (
+
+            {thumbnailPreview && (
+              <div className="relative mb-3 inline-block max-w-xs w-full">
                 <img
                   src={thumbnailPreview}
                   alt="Thumbnail preview"
-                  className="w-32 h-24 object-cover rounded"
+                  className="w-full max-h-48 object-contain rounded-lg border border-gray-200 dark:border-gray-600 bg-gray-100 dark:bg-gray-900"
                 />
-              )}
-              <div className="flex-1">
-                <input
-                  type="file"
-                  accept="image/*"
-                  onChange={handleThumbnailChange}
-                  className={`w-full ${textMuted} file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:bg-red-500 file:text-white file:cursor-pointer hover:file:bg-red-600 transition-colors`}
-                />
-                <p className={`${textMuted} text-xs mt-1`}>{t('supportedFormats')}</p>
+                <button
+                  type="button"
+                  onClick={() => { setThumbnailPreview(null); setThumbnailFile(null); }}
+                  className="absolute top-1.5 right-1.5 bg-red-500 hover:bg-red-600 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs font-bold shadow transition-colors"
+                  title="Remove"
+                >✕</button>
               </div>
+            )}
+
+            <div>
+              <input
+                type="file"
+                accept="image/*"
+                onChange={handleThumbnailChange}
+                className={`w-full ${textMuted} file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:bg-red-500 file:text-white file:cursor-pointer hover:file:bg-red-600 transition-colors`}
+              />
+              <p className={`${textMuted} text-xs mt-1`}>{t('supportedFormats')}</p>
             </div>
           </div>
 

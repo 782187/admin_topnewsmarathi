@@ -1,9 +1,43 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import toast from 'react-hot-toast';
 import { authorAPI } from '../services/api';
 import AdminLayout from '../components/AdminLayout';
 import { useTheme } from '../contexts/ThemeContext';
 import { useLanguage } from '../contexts/LanguageContext';
+
+const STATIC_URL = import.meta.env.VITE_STATIC_URL || '';
+
+const AuthorAvatar = ({ src, name, size = 'md' }) => {
+  const wrapperSize = size === 'sm' ? 56 : 80;
+  const fontSize   = size === 'sm' ? 18 : 28;
+  const initials = name
+    ? name.split(' ').map((w) => w[0]).join('').toUpperCase().slice(0, 2)
+    : '?';
+  const [imgError, setImgError] = useState(false);
+
+  return (
+    <div
+      style={{ width: wrapperSize, height: wrapperSize, minWidth: wrapperSize }}
+      className="rounded-full overflow-hidden flex-shrink-0 border-2 border-gray-200 dark:border-gray-600"
+    >
+      {src && !imgError ? (
+        <img
+          src={`${STATIC_URL}${src}`}
+          alt={name}
+          style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'top center' }}
+          onError={() => setImgError(true)}
+        />
+      ) : (
+        <div
+          style={{ fontSize }}
+          className="w-full h-full bg-red-500 flex items-center justify-center text-white font-bold"
+        >
+          {initials}
+        </div>
+      )}
+    </div>
+  );
+};
 
 const AuthorList = () => {
   const { isDark } = useTheme();
@@ -14,8 +48,11 @@ const AuthorList = () => {
   const [showModal, setShowModal] = useState(false);
   const [editingAuthor, setEditingAuthor] = useState(null);
   const [authorName, setAuthorName] = useState('');
+  const [avatarFile, setAvatarFile] = useState(null);
+  const [avatarPreview, setAvatarPreview] = useState(null);
   const [saving, setSaving] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState(null);
+  const fileInputRef = useRef(null);
 
   const cardBg = isDark ? 'bg-gray-800' : 'bg-white';
   const textClass = isDark ? 'text-white' : 'text-gray-800';
@@ -47,12 +84,16 @@ const AuthorList = () => {
   const openCreateModal = () => {
     setEditingAuthor(null);
     setAuthorName('');
+    setAvatarFile(null);
+    setAvatarPreview(null);
     setShowModal(true);
   };
 
   const openEditModal = (author) => {
     setEditingAuthor(author);
     setAuthorName(author.name);
+    setAvatarFile(null);
+    setAvatarPreview(author.profile_image ? `${STATIC_URL}${author.profile_image}` : null);
     setShowModal(true);
   };
 
@@ -60,6 +101,27 @@ const AuthorList = () => {
     setShowModal(false);
     setEditingAuthor(null);
     setAuthorName('');
+    setAvatarFile(null);
+    setAvatarPreview(null);
+    if (fileInputRef.current) fileInputRef.current.value = '';
+  };
+
+  const handleAvatarChange = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    const allowedTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
+    if (!allowedTypes.includes(file.type)) {
+      toast.error('Only JPG, PNG, WebP, or GIF images are allowed');
+      return;
+    }
+    if (file.size > 2 * 1024 * 1024) {
+      toast.error('Image must be under 2MB');
+      return;
+    }
+
+    setAvatarFile(file);
+    setAvatarPreview(URL.createObjectURL(file));
   };
 
   const handleSave = async () => {
@@ -69,18 +131,26 @@ const AuthorList = () => {
     }
     setSaving(true);
     try {
+      const formData = new FormData();
+      formData.append('name', authorName.trim());
+      if (avatarFile) {
+        formData.append('profile_image', avatarFile);
+      }
+
       if (editingAuthor) {
-        const response = await authorAPI.update(editingAuthor.id, { name: authorName.trim() });
+        const response = await authorAPI.update(editingAuthor.id, formData);
         if (response.data.success) {
           toast.success(t('authorUpdated'));
-          setAuthors(prev => prev.map(a => a.id === editingAuthor.id ? response.data.data.author : a));
+          setAuthors((prev) =>
+            prev.map((a) => (a.id === editingAuthor.id ? response.data.data.author : a))
+          );
           closeModal();
         }
       } else {
-        const response = await authorAPI.create({ name: authorName.trim() });
+        const response = await authorAPI.create(formData);
         if (response.data.success) {
           toast.success(t('authorCreated'));
-          setAuthors(prev => [...prev, response.data.data.author]);
+          setAuthors((prev) => [...prev, response.data.data.author]);
           closeModal();
         }
       }
@@ -97,7 +167,7 @@ const AuthorList = () => {
       const response = await authorAPI.delete(author.id);
       if (response.data.success) {
         toast.success(t('authorDeleted'));
-        setAuthors(prev => prev.filter(a => a.id !== author.id));
+        setAuthors((prev) => prev.filter((a) => a.id !== author.id));
         setDeleteConfirm(null);
       }
     } catch (error) {
@@ -138,6 +208,7 @@ const AuthorList = () => {
               <thead>
                 <tr className={tableHeader}>
                   <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider">#</th>
+                  <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider">{t('avatar') || 'Avatar'}</th>
                   <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider">{t('authorName')}</th>
                   <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider">{t('date')}</th>
                   <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider">{t('actions')}</th>
@@ -146,7 +217,7 @@ const AuthorList = () => {
               <tbody className={`divide-y ${isDark ? 'divide-gray-700' : 'divide-gray-200'}`}>
                 {authors.length === 0 ? (
                   <tr>
-                    <td colSpan={4} className={`px-6 py-10 text-center ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+                    <td colSpan={5} className={`px-6 py-10 text-center ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
                       {t('noAuthorsFound')}
                     </td>
                   </tr>
@@ -154,6 +225,9 @@ const AuthorList = () => {
                   authors.map((author, idx) => (
                     <tr key={author.id} className={`${rowHover} transition-colors`}>
                       <td className={`px-6 py-4 text-sm ${isDark ? 'text-gray-300' : 'text-gray-600'}`}>{idx + 1}</td>
+                      <td className="px-6 py-4">
+                        <AuthorAvatar src={author.profile_image} name={author.name} size="sm" />
+                      </td>
                       <td className={`px-6 py-4 text-sm font-medium ${textClass}`}>{author.name}</td>
                       <td className={`px-6 py-4 text-sm ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
                         {new Date(author.created_at).toLocaleDateString('mr-IN')}
@@ -187,17 +261,80 @@ const AuthorList = () => {
       {showModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className={`${cardBg} rounded-lg p-6 w-full max-w-md shadow-xl`}>
-            <h3 className={`text-lg font-semibold ${textClass} mb-4`}>
+            <h3 className={`text-lg font-semibold ${textClass} mb-5`}>
               {editingAuthor ? t('editAuthor') : t('addNewAuthor')}
             </h3>
+
+            {/* Avatar Upload */}
+            <div className="flex items-center gap-4 mb-5">
+              <div className="relative flex-shrink-0">
+                {avatarPreview ? (
+                  <img
+                    src={avatarPreview}
+                    alt="Preview"
+                    className="w-16 h-16 rounded-full object-cover border-2 border-red-500"
+                  />
+                ) : (
+                  <div className="w-16 h-16 rounded-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center border-2 border-dashed border-gray-400">
+                    <svg className="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                    </svg>
+                  </div>
+                )}
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  className="absolute -bottom-1 -right-1 w-6 h-6 bg-red-500 rounded-full flex items-center justify-center hover:bg-red-600 transition-colors"
+                >
+                  <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                  </svg>
+                </button>
+              </div>
+              <div className="flex-1">
+                <p className={`text-sm font-medium ${textLabel} mb-1`}>{t('profilePhoto') || 'Profile Photo'}</p>
+                <p className={`text-xs ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
+                  JPG, PNG, WebP · Max 2MB
+                </p>
+                <p className={`text-xs mt-0.5 ${isDark ? 'text-yellow-400/70' : 'text-amber-600'}`}>
+                  💡 Best size: 400×400 px, square (1:1)
+                </p>
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  className={`mt-2 text-xs px-3 py-1 border ${isDark ? 'border-gray-600 text-gray-300 hover:bg-gray-700' : 'border-gray-300 text-gray-600 hover:bg-gray-50'} rounded transition-colors`}
+                >
+                  {avatarPreview ? (t('changePhoto') || 'Change Photo') : (t('uploadPhoto') || 'Upload Photo')}
+                </button>
+                {avatarPreview && editingAuthor && (
+                  <button
+                    type="button"
+                    onClick={() => { setAvatarFile(null); setAvatarPreview(null); if (fileInputRef.current) fileInputRef.current.value = ''; }}
+                    className="ml-2 mt-2 text-xs px-3 py-1 border border-red-300 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded transition-colors"
+                  >
+                    {t('removePhoto') || 'Remove'}
+                  </button>
+                )}
+              </div>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/jpeg,image/png,image/webp,image/gif"
+                onChange={handleAvatarChange}
+                className="hidden"
+              />
+            </div>
+
+            {/* Name Input */}
             <input
               type="text"
               value={authorName}
               onChange={(e) => setAuthorName(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && handleSave()}
               placeholder={t('enterAuthorName')}
-              className={`w-full border ${inputBg} ${inputText} rounded-lg px-4 py-3 focus:border-red-500 focus:ring-2 focus:ring-red-500/20 outline-none mb-4`}
+              className={`w-full border ${inputBg} ${inputText} rounded-lg px-4 py-3 focus:border-red-500 focus:ring-2 focus:ring-red-500/20 outline-none mb-5`}
             />
+
             <div className="flex justify-end space-x-3">
               <button
                 onClick={closeModal}
