@@ -7,6 +7,16 @@ import { useLanguage } from '../contexts/LanguageContext';
 
 const STATIC_URL = import.meta.env.VITE_API_URL.replace(/\/api$/, '');
 
+// Safely joins STATIC_URL with a stored file path regardless of whether the
+// path was saved with or without a leading slash (author avatars are stored
+// without one, unlike article thumbnails / ad media).
+const buildStaticUrl = (filePath) => {
+  if (!filePath) return '';
+  const base = STATIC_URL.endsWith('/') ? STATIC_URL.slice(0, -1) : STATIC_URL;
+  const path = filePath.startsWith('/') ? filePath : `/${filePath}`;
+  return `${base}${path}`;
+};
+
 const AuthorAvatar = ({ src, name, size = 'md' }) => {
   const wrapperSize = size === 'sm' ? 56 : 80;
   const fontSize   = size === 'sm' ? 18 : 28;
@@ -22,7 +32,7 @@ const AuthorAvatar = ({ src, name, size = 'md' }) => {
     >
       {src && !imgError ? (
         <img
-          src={`${STATIC_URL}${src}`}
+          src={buildStaticUrl(src)}
           alt={name}
           style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'top center' }}
           onError={() => setImgError(true)}
@@ -93,7 +103,7 @@ const AuthorList = () => {
     setEditingAuthor(author);
     setAuthorName(author.name);
     setAvatarFile(null);
-    setAvatarPreview(author.profile_image ? `${STATIC_URL}${author.profile_image}` : null);
+    setAvatarPreview(author.profile_image ? buildStaticUrl(author.profile_image) : null);
     setShowModal(true);
   };
 
