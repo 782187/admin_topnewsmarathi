@@ -5,7 +5,7 @@ import AdminLayout from '../components/AdminLayout';
 import { useTheme } from '../contexts/ThemeContext';
 import { useLanguage } from '../contexts/LanguageContext';
 
-const STATIC_URL = import.meta.env.VITE_STATIC_URL || '';
+const STATIC_URL = import.meta.env.VITE_API_URL.replace(/\/api$/, '');
 
 const AuthorAvatar = ({ src, name, size = 'md' }) => {
   const wrapperSize = size === 'sm' ? 56 : 80;
