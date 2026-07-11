@@ -9,6 +9,9 @@ import ArticleForm from './pages/ArticleForm';
 import AdList from './pages/AdList';
 import AdForm from './pages/AdForm';
 import AuthorList from './pages/AuthorList';
+import EpaperEditionList from './pages/EpaperEditionList';
+import EpaperList from './pages/EpaperList';
+import EpaperForm from './pages/EpaperForm';
 import ProtectedRoute from './components/ProtectedRoute';
 import './index.css';
 
@@ -104,15 +107,47 @@ function App() {
             </ProtectedRoute>
           } 
         />
-        <Route 
-          path="/admin/ads/edit/:id" 
+        <Route
+          path="/admin/ads/edit/:id"
           element={
             <ProtectedRoute>
               <AdForm />
             </ProtectedRoute>
-          } 
+          }
         />
-        
+        <Route
+          path="/admin/epapers/editions"
+          element={
+            <ProtectedRoute>
+              <EpaperEditionList />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin/epapers/list"
+          element={
+            <ProtectedRoute>
+              <EpaperList />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin/epapers/upload"
+          element={
+            <ProtectedRoute>
+              <EpaperForm />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin/epapers/edit/:id"
+          element={
+            <ProtectedRoute>
+              <EpaperForm />
+            </ProtectedRoute>
+          }
+        />
+
         {/* Default redirect */}
         <Route path="/admin" element={<Navigate to="/admin/login" replace />} />
       </Routes>

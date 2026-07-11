@@ -102,4 +102,24 @@ export const adsAPI = {
   toggleStatus: (id) => api.patch(`/ads/${id}/toggle`),
 };
 
+// E-Paper API
+export const epaperAPI = {
+  // Editions
+  getEditions: () => api.get('/epapers/editions'),
+  createEdition: (data) => api.post('/epapers/editions', data),
+  updateEdition: (id, data) => api.put(`/epapers/editions/${id}`, data),
+  deleteEdition: (id) => api.delete(`/epapers/editions/${id}`),
+
+  // Issues
+  getAll: (params) => api.get('/epapers', { params }),
+  getById: (id) => api.get(`/epapers/${id}`),
+  create: (formData) => api.post('/epapers', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  }),
+  update: (id, formData) => api.put(`/epapers/${id}`, formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  }),
+  delete: (id) => api.delete(`/epapers/${id}`),
+};
+
 export default api;

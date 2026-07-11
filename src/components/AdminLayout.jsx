@@ -32,6 +32,9 @@ const AdminLayout = ({ children, fullWidth = false }) => {
     { path: '/admin/authors', label: t('authors'), icon: 'author' },
     { path: '/admin/ads/list', label: t('advertisements'), icon: 'ads' },
     { path: '/admin/ads/create', label: t('createAd'), icon: 'addAd' },
+    { path: '/admin/epapers/list', label: t('epaperIssues'), icon: 'epaper' },
+    { path: '/admin/epapers/editions', label: t('epaperEditions'), icon: 'epaperEdition' },
+    { path: '/admin/epapers/upload', label: t('uploadEpaper'), icon: 'addAd' },
   ];
 
   const isActive = (path) => location.pathname === path;
@@ -72,6 +75,18 @@ const AdminLayout = ({ children, fullWidth = false }) => {
         return (
           <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+          </svg>
+        );
+      case 'epaper':
+        return (
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.746 0 3.332.477 4.5 1.253v13C19.832 18.477 18.246 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+          </svg>
+        );
+      case 'epaperEdition':
+        return (
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" />
           </svg>
         );
       default:
