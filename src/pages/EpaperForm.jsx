@@ -25,6 +25,7 @@ const EpaperForm = () => {
 
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(null);
   const [editions, setEditions] = useState([]);
   const [pdfFile, setPdfFile] = useState(null);
   const [thumbnailFile, setThumbnailFile] = useState(null);
@@ -87,8 +88,8 @@ const EpaperForm = () => {
       toast.error(t('pdfFile'));
       return;
     }
-    if (file.size > 25 * 1024 * 1024) {
-      toast.error('PDF must be under 25MB');
+    if (file.size > 200 * 1024 * 1024) {
+      toast.error('PDF must be under 200MB');
       return;
     }
     setPdfFile(file);
@@ -124,6 +125,7 @@ const EpaperForm = () => {
     }
 
     setSaving(true);
+    setUploadProgress(pdfFile ? 0 : null);
     try {
       const data = new FormData();
       data.append('edition_id', formData.edition_id);
@@ -132,14 +134,20 @@ const EpaperForm = () => {
       if (pdfFile) data.append('pdf', pdfFile);
       if (thumbnailFile) data.append('thumbnail', thumbnailFile);
 
+      const onUploadProgress = pdfFile
+        ? (evt) => {
+            if (evt.total) setUploadProgress(Math.round((evt.loaded / evt.total) * 100));
+          }
+        : undefined;
+
       if (isEdit) {
-        const response = await epaperAPI.update(id, data);
+        const response = await epaperAPI.update(id, data, onUploadProgress);
         if (response.data.success) {
           toast.success(t('epaperUpdated'));
           navigate('/admin/epapers/list');
         }
       } else {
-        const response = await epaperAPI.create(data);
+        const response = await epaperAPI.create(data, onUploadProgress);
         if (response.data.success) {
           toast.success(t('epaperUploaded'));
           navigate('/admin/epapers/list');
@@ -150,6 +158,7 @@ const EpaperForm = () => {
       toast.error(message);
     } finally {
       setSaving(false);
+      setUploadProgress(null);
     }
   };
 
@@ -236,7 +245,7 @@ const EpaperForm = () => {
             />
             {pdfFile && <p className={`${textMuted} text-xs mt-1`}>{pdfFile.name}</p>}
             <p className={`${textMuted} text-xs mt-1`}>
-              {isEdit ? t('replacePdf') : 'PDF · Max 25MB'}
+              {isEdit ? t('replacePdf') : 'PDF · Max 200MB'}
             </p>
           </div>
 
@@ -281,11 +290,29 @@ const EpaperForm = () => {
             </label>
           </div>
 
+          {saving && uploadProgress !== null && (
+            <div className={`${cardBg} rounded-lg shadow-sm border ${borderClass} p-4`}>
+              <div className="flex items-center justify-between mb-2">
+                <span className={`text-sm font-medium ${textLabel}`}>
+                  {uploadProgress < 100 ? 'अपलोड होत आहे...' : 'प्रक्रिया करत आहे...'}
+                </span>
+                <span className={`text-sm ${textMuted}`}>{uploadProgress}%</span>
+              </div>
+              <div className={`w-full h-2 rounded-full overflow-hidden ${isDark ? 'bg-gray-700' : 'bg-gray-200'}`}>
+                <div
+                  className="h-full bg-red-500 transition-all duration-200"
+                  style={{ width: `${uploadProgress}%` }}
+                />
+              </div>
+            </div>
+          )}
+
           <div className="flex justify-end space-x-4">
             <button
               type="button"
               onClick={() => navigate('/admin/epapers/list')}
-              className={`px-6 py-3 ${isDark ? 'bg-gray-700 text-gray-300 border-gray-600' : 'bg-gray-100 text-gray-700 border-gray-300'} border rounded-lg hover:${isDark ? 'bg-gray-600' : 'bg-gray-200'} transition-colors`}
+              disabled={saving}
+              className={`px-6 py-3 ${isDark ? 'bg-gray-700 text-gray-300 border-gray-600' : 'bg-gray-100 text-gray-700 border-gray-300'} border rounded-lg hover:${isDark ? 'bg-gray-600' : 'bg-gray-200'} transition-colors disabled:opacity-50 disabled:cursor-not-allowed`}
             >
               {t('cancel')}
             </button>
@@ -294,7 +321,9 @@ const EpaperForm = () => {
               disabled={saving}
               className="px-6 py-3 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {saving ? t('saving') : (isEdit ? t('epaperUpdated') : t('uploadEpaper'))}
+              {saving
+                ? (uploadProgress !== null ? `${t('saving')} ${uploadProgress}%` : t('saving'))
+                : (isEdit ? t('epaperUpdated') : t('uploadEpaper'))}
             </button>
           </div>
         </form>

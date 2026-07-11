@@ -113,11 +113,13 @@ export const epaperAPI = {
   // Issues
   getAll: (params) => api.get('/epapers', { params }),
   getById: (id) => api.get(`/epapers/${id}`),
-  create: (formData) => api.post('/epapers', formData, {
+  create: (formData, onUploadProgress) => api.post('/epapers', formData, {
     headers: { 'Content-Type': 'multipart/form-data' },
+    onUploadProgress,
   }),
-  update: (id, formData) => api.put(`/epapers/${id}`, formData, {
+  update: (id, formData, onUploadProgress) => api.put(`/epapers/${id}`, formData, {
     headers: { 'Content-Type': 'multipart/form-data' },
+    onUploadProgress,
   }),
   delete: (id) => api.delete(`/epapers/${id}`),
 };
