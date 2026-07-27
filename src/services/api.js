@@ -65,7 +65,7 @@ export const articleAPI = {
   getBreaking: (limit) => api.get('/articles/breaking', { params: { limit } }),
   getVideos: (limit) => api.get('/articles/videos', { params: { limit } }),
   getBySlug: (slug) => api.get(`/articles/${slug}`),
-  getById: (id) => api.get(`/articles/${id}`),
+  getById: (id) => api.get(`/articles/id/${id}`),
   create: (formData) => api.post('/articles', formData, {
     headers: { 'Content-Type': 'multipart/form-data' },
   }),
