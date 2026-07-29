@@ -227,6 +227,12 @@ const EpaperList = () => {
                       <td className="px-4 py-3 text-right">
                         <div className="flex items-center justify-end space-x-3">
                           <Link
+                            to={`/admin/epapers/${epaper.id}/articles`}
+                            className={`${isDark ? 'text-emerald-400 hover:text-emerald-300' : 'text-emerald-600 hover:text-emerald-800'} text-sm font-medium transition-colors`}
+                          >
+                            Sections
+                          </Link>
+                          <Link
                             to={`/admin/epapers/edit/${epaper.id}`}
                             className={`${isDark ? 'text-blue-400 hover:text-blue-300' : 'text-blue-600 hover:text-blue-800'} text-sm font-medium transition-colors`}
                           >

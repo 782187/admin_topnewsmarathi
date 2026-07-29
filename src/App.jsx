@@ -12,6 +12,7 @@ import AuthorList from './pages/AuthorList';
 import EpaperEditionList from './pages/EpaperEditionList';
 import EpaperList from './pages/EpaperList';
 import EpaperForm from './pages/EpaperForm';
+import EpaperArticleEditor from './pages/EpaperArticleEditor';
 import ProtectedRoute from './components/ProtectedRoute';
 import './index.css';
 
@@ -144,6 +145,14 @@ function App() {
           element={
             <ProtectedRoute>
               <EpaperForm />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin/epapers/:id/articles"
+          element={
+            <ProtectedRoute>
+              <EpaperArticleEditor />
             </ProtectedRoute>
           }
         />

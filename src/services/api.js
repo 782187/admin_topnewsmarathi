@@ -122,6 +122,16 @@ export const epaperAPI = {
     onUploadProgress,
   }),
   delete: (id) => api.delete(`/epapers/${id}`),
+
+  // Page rendering (Phase 0) + clickable sections (Phase 1)
+  renderPages: (id) => api.post(`/epapers/${id}/render-pages`),
+  getEditor: (id) => api.get(`/epapers/${id}/editor`),
+  createArticle: (id, data) => api.post(`/epapers/${id}/articles`, data),
+  updateArticle: (articleId, data) => api.put(`/epaper-articles/${articleId}`, data),
+  deleteArticle: (articleId) => api.delete(`/epaper-articles/${articleId}`),
+  autoDetectSections: (id, pageNumber) => api.post(`/epapers/${id}/pages/${pageNumber}/auto-detect`),
+  clearPageSections: (id, pageNumber) => api.delete(`/epapers/${id}/pages/${pageNumber}/articles`),
+  mergeSections: (id, articleIds) => api.post(`/epapers/${id}/articles/merge`, { article_ids: articleIds }),
 };
 
 export default api;
