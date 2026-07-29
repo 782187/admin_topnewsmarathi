@@ -13,7 +13,24 @@ const buildStaticUrl = (filePath) => {
   return `${base}${p}`;
 };
 
-const MIN_BOX = 0.02; // ignore accidental tiny drags (2% of a side)
+const MIN_BOX = 0.02;      // ignore accidental tiny drags (2% of a side)
+const MIN_SIZE = 0.02;     // minimum box side when resizing
+const HANDLE_HIT = 14;     // px radius to grab a resize handle
+const SCROLL_EDGE = 70;    // px from viewport edge that triggers auto-scroll while dragging
+const SCROLL_STEP = 24;    // px scrolled per move near an edge
+const HANDLE_DIRS = ['nw', 'n', 'ne', 'w', 'e', 'sw', 's', 'se'];
+
+const handlePos = {
+  nw: { left: '0%', top: '0%' }, n: { left: '50%', top: '0%' }, ne: { left: '100%', top: '0%' },
+  w: { left: '0%', top: '50%' }, e: { left: '100%', top: '50%' },
+  sw: { left: '0%', top: '100%' }, s: { left: '50%', top: '100%' }, se: { left: '100%', top: '100%' },
+};
+const cursorForHandle = (h) => {
+  if (h === 'n' || h === 's') return 'ns-resize';
+  if (h === 'e' || h === 'w') return 'ew-resize';
+  if (h === 'nw' || h === 'se') return 'nwse-resize';
+  return 'nesw-resize';
+};
 
 const EpaperArticleEditor = () => {
   const { id } = useParams();
@@ -33,7 +50,9 @@ const EpaperArticleEditor = () => {
   const [selectedIds, setSelectedIds] = useState([]); // section ids selected for merge (current page)
 
   const surfaceRef = useRef(null);
-  const startRef = useRef(null);
+  const interactionRef = useRef(null); // { kind:'draw'|'move'|'resize', articleId, handle, startPx, origBox }
+  const [liveBox, setLiveBox] = useState(null); // box being moved/resized (live, pre-commit)
+  const [hoveredId, setHoveredId] = useState(null); // box under cursor → show its resize handles
 
   const cardBg = isDark ? 'bg-gray-800' : 'bg-white';
   const textClass = isDark ? 'text-white' : 'text-gray-800';
@@ -62,42 +81,165 @@ const EpaperArticleEditor = () => {
     fetchEditor();
   }, [fetchEditor]);
 
-  // Selection is per-page — reset it whenever the admin switches pages.
+  // Selection + any in-progress interaction is per-page — reset on page switch.
   useEffect(() => {
     setSelectedIds([]);
+    setLiveBox(null);
+    setHoveredId(null);
+    interactionRef.current = null;
   }, [currentPage]);
 
   const currentPageObj = pages.find((p) => p.page_number === currentPage) || null;
   const pageArticles = articles.filter((a) => a.page_number === currentPage);
 
-  const getFrac = (e) => {
+  const getPos = (e) => {
     const rect = surfaceRef.current.getBoundingClientRect();
-    const x = (e.clientX - rect.left) / rect.width;
-    const y = (e.clientY - rect.top) / rect.height;
-    return { x: Math.min(1, Math.max(0, x)), y: Math.min(1, Math.max(0, y)) };
+    const px = e.clientX - rect.left;
+    const py = e.clientY - rect.top;
+    return {
+      rect,
+      px,
+      py,
+      fx: Math.min(1, Math.max(0, px / rect.width)),
+      fy: Math.min(1, Math.max(0, py / rect.height)),
+    };
+  };
+
+  // Decide what a pointerdown grabs: a resize handle, a box body (move), or empty (draw).
+  const hitTest = (px, py, rect) => {
+    for (let i = pageArticles.length - 1; i >= 0; i--) {
+      const a = pageArticles[i];
+      const bx = a.x * rect.width, by = a.y * rect.height, bw = a.w * rect.width, bh = a.h * rect.height;
+      for (const dir of HANDLE_DIRS) {
+        const hx = bx + (dir.includes('w') ? 0 : dir.includes('e') ? bw : bw / 2);
+        const hy = by + (dir.includes('n') ? 0 : dir.includes('s') ? bh : bh / 2);
+        if (Math.abs(px - hx) <= HANDLE_HIT && Math.abs(py - hy) <= HANDLE_HIT) {
+          return { kind: 'resize', articleId: a.id, handle: dir };
+        }
+      }
+    }
+    for (let i = pageArticles.length - 1; i >= 0; i--) {
+      const a = pageArticles[i];
+      const bx = a.x * rect.width, by = a.y * rect.height, bw = a.w * rect.width, bh = a.h * rect.height;
+      if (px >= bx && px <= bx + bw && py >= by && py <= by + bh) {
+        return { kind: 'move', articleId: a.id };
+      }
+    }
+    return { kind: 'draw' };
+  };
+
+  // Scroll the window when a drag reaches the top/bottom edge, so a big selection can
+  // extend beyond the visible area.
+  const autoScroll = (e) => {
+    if (e.clientY < SCROLL_EDGE) window.scrollBy(0, -SCROLL_STEP);
+    else if (e.clientY > window.innerHeight - SCROLL_EDGE) window.scrollBy(0, SCROLL_STEP);
   };
 
   const onPointerDown = (e) => {
     if (e.button !== 0 || saving) return;
+    const { rect, px, py, fx, fy } = getPos(e);
+    const hit = hitTest(px, py, rect);
     surfaceRef.current.setPointerCapture(e.pointerId);
-    const p = getFrac(e);
-    startRef.current = p;
-    setDraft({ x: p.x, y: p.y, w: 0, h: 0 });
+
+    if (hit.kind === 'draw') {
+      interactionRef.current = { kind: 'draw', startFrac: { x: fx, y: fy } };
+      setDraft({ x: fx, y: fy, w: 0, h: 0 });
+      return;
+    }
+    const a = pageArticles.find((x) => x.id === hit.articleId);
+    if (!a) return;
+    interactionRef.current = {
+      kind: hit.kind,
+      articleId: a.id,
+      handle: hit.handle,
+      startPx: { x: px, y: py },
+      origBox: { x: a.x, y: a.y, w: a.w, h: a.h },
+    };
+    setLiveBox({ id: a.id, x: a.x, y: a.y, w: a.w, h: a.h });
   };
 
   const onPointerMove = (e) => {
-    if (!startRef.current) return;
-    const p = getFrac(e);
-    const s = startRef.current;
-    setDraft({ x: Math.min(s.x, p.x), y: Math.min(s.y, p.y), w: Math.abs(p.x - s.x), h: Math.abs(p.y - s.y) });
+    const it = interactionRef.current;
+
+    // Idle hover: show resize handles + a matching cursor for the box under the pointer.
+    if (!it) {
+      if (!surfaceRef.current) return;
+      const { rect, px, py } = getPos(e);
+      const hit = hitTest(px, py, rect);
+      surfaceRef.current.style.cursor =
+        hit.kind === 'resize' ? cursorForHandle(hit.handle) : hit.kind === 'move' ? 'move' : 'crosshair';
+      const overId = hit.kind === 'draw' ? null : hit.articleId;
+      if (overId !== hoveredId) setHoveredId(overId);
+      return;
+    }
+
+    autoScroll(e);
+    const { rect, px, py, fx, fy } = getPos(e);
+
+    if (it.kind === 'draw') {
+      const s = it.startFrac;
+      setDraft({ x: Math.min(s.x, fx), y: Math.min(s.y, fy), w: Math.abs(fx - s.x), h: Math.abs(fy - s.y) });
+      return;
+    }
+
+    if (it.kind === 'move') {
+      const dx = (px - it.startPx.x) / rect.width;
+      const dy = (py - it.startPx.y) / rect.height;
+      const { w, h } = it.origBox;
+      const x = Math.min(1 - w, Math.max(0, it.origBox.x + dx));
+      const y = Math.min(1 - h, Math.max(0, it.origBox.y + dy));
+      setLiveBox({ id: it.articleId, x, y, w, h });
+      return;
+    }
+
+    // resize
+    let left = it.origBox.x, top = it.origBox.y;
+    let right = it.origBox.x + it.origBox.w, bottom = it.origBox.y + it.origBox.h;
+    const h = it.handle;
+    if (h.includes('w')) left = Math.min(fx, right - MIN_SIZE);
+    if (h.includes('e')) right = Math.max(fx, left + MIN_SIZE);
+    if (h.includes('n')) top = Math.min(fy, bottom - MIN_SIZE);
+    if (h.includes('s')) bottom = Math.max(fy, top + MIN_SIZE);
+    left = Math.max(0, left); top = Math.max(0, top);
+    right = Math.min(1, right); bottom = Math.min(1, bottom);
+    setLiveBox({ id: it.articleId, x: left, y: top, w: right - left, h: bottom - top });
   };
 
   const onPointerUp = async () => {
-    const d = draft;
-    startRef.current = null;
-    setDraft(null);
-    if (!d || d.w < MIN_BOX || d.h < MIN_BOX) return;
-    await createBox(d);
+    const it = interactionRef.current;
+    interactionRef.current = null;
+    if (!it) return;
+
+    if (it.kind === 'draw') {
+      const d = draft;
+      setDraft(null);
+      if (!d || d.w < MIN_BOX || d.h < MIN_BOX) return;
+      await createBox(d);
+      return;
+    }
+
+    const lb = liveBox;
+    setLiveBox(null);
+    if (!lb) return;
+    const o = it.origBox;
+    const changed =
+      Math.abs(lb.x - o.x) > 0.001 || Math.abs(lb.y - o.y) > 0.001 ||
+      Math.abs(lb.w - o.w) > 0.001 || Math.abs(lb.h - o.h) > 0.001;
+    if (changed) await commitBox(it.articleId, lb);
+  };
+
+  const commitBox = async (articleId, box) => {
+    setSaving(true);
+    try {
+      const res = await epaperAPI.updateArticle(articleId, { x: box.x, y: box.y, w: box.w, h: box.h });
+      if (res.data.success) {
+        setArticles((prev) => prev.map((a) => (a.id === articleId ? res.data.data.article : a)));
+      }
+    } catch (error) {
+      toast.error(error.response?.data?.message || 'Failed to update section');
+    } finally {
+      setSaving(false);
+    }
   };
 
   const createBox = async (box) => {
@@ -290,7 +432,7 @@ const EpaperArticleEditor = () => {
               <div className={`lg:col-span-2 ${cardBg} rounded-lg border ${borderClass} p-3`}>
                 <div className="flex items-center justify-between gap-2 mb-3 flex-wrap">
                   <p className={`text-sm ${textMuted}`}>
-                    Drag to draw a section, or auto-detect from the page text.
+                    Drag empty space to draw. Grab a box to move it, or drag its handles to resize — extend downward for big articles (the view scrolls).
                   </p>
                   <div className="flex items-center gap-2">
                     <button
@@ -361,11 +503,13 @@ const EpaperArticleEditor = () => {
                     <div className="absolute inset-0 pointer-events-none">
                       {pageArticles.map((a, i) => {
                         const isSel = selectedIds.includes(a.id);
+                        const box = liveBox && liveBox.id === a.id ? liveBox : a;
+                        const showHandles = hoveredId === a.id || (liveBox && liveBox.id === a.id);
                         return (
                           <div
                             key={a.id}
                             className={`absolute border-2 ${isSel ? 'border-blue-500 bg-blue-500/15' : 'border-red-500 bg-red-500/10'}`}
-                            style={{ left: `${a.x * 100}%`, top: `${a.y * 100}%`, width: `${a.w * 100}%`, height: `${a.h * 100}%` }}
+                            style={{ left: `${box.x * 100}%`, top: `${box.y * 100}%`, width: `${box.w * 100}%`, height: `${box.h * 100}%` }}
                           >
                             <button
                               onClick={() => toggleSelect(a.id)}
@@ -383,6 +527,14 @@ const EpaperArticleEditor = () => {
                             >
                               ×
                             </button>
+                            {/* Resize handles (visual only — hit-testing is done on the surface) */}
+                            {showHandles && HANDLE_DIRS.map((d) => (
+                              <span
+                                key={d}
+                                className="absolute w-2.5 h-2.5 bg-white border border-red-500 rounded-sm shadow"
+                                style={{ ...handlePos[d], transform: 'translate(-50%, -50%)' }}
+                              />
+                            ))}
                           </div>
                         );
                       })}
