@@ -8,6 +8,8 @@ import AdminLayout from '../components/AdminLayout';
 import { useTheme } from '../contexts/ThemeContext';
 import { useLanguage } from '../contexts/LanguageContext';
 import { convertToEmbedUrl, extractYouTubeInfo, isYouTubeUrl } from '../utils/videoUtils.js';
+import InstagramEmbed from '../components/InstagramEmbed.jsx';
+import { isInstagramUrl, normalizeInstagramUrl } from '../utils/instagramUtils.js';
 
 // Quill toolbar configuration
 const quillModules = {
@@ -45,6 +47,7 @@ const ArticleForm = () => {
   const [newCityName, setNewCityName] = useState('');
   const [thumbnailPreview, setThumbnailPreview] = useState(null);
   const [thumbnailFile, setThumbnailFile] = useState(null);
+  const [showInstagram, setShowInstagram] = useState(false);
 
   const [formData, setFormData] = useState({
     title: '',
@@ -53,6 +56,7 @@ const ArticleForm = () => {
     city_id: '',
     type: 'article',
     video_url: '',
+    instagram_url: '',
     author_id: '',
   });
 
@@ -117,8 +121,13 @@ const ArticleForm = () => {
         city_id: article.city_id?.toString() || '',
         type: article.type || 'article',
         video_url: article.video_url || '',
+        instagram_url: article.instagram_url || '',
         author_id: article.author_id?.toString() || '',
       });
+
+      if (article.instagram_url) {
+        setShowInstagram(true);
+      }
 
       if (article.thumbnail) {
         setThumbnailPreview(`${import.meta.env.VITE_API_URL.replace(/\/api$/, '')}${article.thumbnail}`);
@@ -224,6 +233,12 @@ const ArticleForm = () => {
       return;
     }
 
+    // Validate Instagram URL if provided
+    if (formData.instagram_url.trim() && !isInstagramUrl(formData.instagram_url)) {
+      toast.error('Please enter a valid Instagram post URL');
+      return;
+    }
+
     setLoading(true);
 
     try {
@@ -234,6 +249,9 @@ const ArticleForm = () => {
       if (formData.city_id) data.append('city_id', formData.city_id);
       data.append('type', formData.type || 'article');
       if (formData.video_url) data.append('video_url', formData.video_url);
+      if (formData.instagram_url && formData.instagram_url.trim()) {
+        data.append('instagram_url', normalizeInstagramUrl(formData.instagram_url));
+      }
       if (formData.author_id) data.append('author_id', formData.author_id);
       if (thumbnailFile) data.append('thumbnail', thumbnailFile);
 
@@ -497,7 +515,70 @@ const ArticleForm = () => {
             </div>
           </div>
 
-          
+          {/* Instagram Post Embed (Optional) — rendered below the article on the site */}
+          <div className={`${cardBg} rounded-lg shadow-sm border ${borderClass} p-4`}>
+            <div className="flex items-center justify-between">
+              <label className={`block text-sm font-medium ${textLabel}`}>
+                Instagram Post
+                <span className={`ml-2 text-xs font-normal ${textMuted}`}>Optional</span>
+              </label>
+              {!showInstagram && (
+                <button
+                  type="button"
+                  onClick={() => setShowInstagram(true)}
+                  className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-white text-sm font-medium transition-opacity hover:opacity-90"
+                  style={{ background: 'linear-gradient(45deg, #f09433, #e6683c, #dc2743, #cc2366, #bc1888)' }}
+                >
+                  <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M7.8 2h8.4C19.4 2 22 4.6 22 7.8v8.4a5.8 5.8 0 0 1-5.8 5.8H7.8C4.6 22 2 19.4 2 16.2V7.8A5.8 5.8 0 0 1 7.8 2m-.2 2A3.6 3.6 0 0 0 4 7.6v8.8C4 18.39 5.61 20 7.6 20h8.8a3.6 3.6 0 0 0 3.6-3.6V7.6C20 5.61 18.39 4 16.4 4H7.6m9.65 1.5a1.25 1.25 0 0 1 1.25 1.25A1.25 1.25 0 0 1 17.25 8 1.25 1.25 0 0 1 16 6.75a1.25 1.25 0 0 1 1.25-1.25M12 7a5 5 0 0 1 5 5 5 5 0 0 1-5 5 5 5 0 0 1-5-5 5 5 0 0 1 5-5m0 2a3 3 0 0 0-3 3 3 3 0 0 0 3 3 3 3 0 0 0 3-3 3 3 0 0 0-3-3z"/></svg>
+                  Embed Instagram
+                </button>
+              )}
+            </div>
+
+            {showInstagram && (
+              <div className="mt-3">
+                <input
+                  type="url"
+                  name="instagram_url"
+                  value={formData.instagram_url}
+                  onChange={handleChange}
+                  placeholder="https://www.instagram.com/p/XXXXXXXXX/"
+                  className={`w-full border ${inputBg} ${inputText} rounded-lg px-4 py-3 focus:border-red-500 focus:ring-2 focus:ring-red-500/20 outline-none`}
+                />
+                <p className={`${textMuted} text-xs mt-1`}>
+                  Paste an Instagram post, reel or video link. It will appear below the article content on the site.
+                </p>
+
+                {formData.instagram_url.trim() && isInstagramUrl(formData.instagram_url) && (
+                  <div className="mt-4">
+                    <p className={`${textMuted} text-sm mb-2`}>Preview:</p>
+                    <div className="rounded-lg overflow-hidden bg-white p-2 flex justify-center">
+                      <InstagramEmbed
+                        key={normalizeInstagramUrl(formData.instagram_url)}
+                        url={normalizeInstagramUrl(formData.instagram_url)}
+                      />
+                    </div>
+                  </div>
+                )}
+
+                {formData.instagram_url.trim() && !isInstagramUrl(formData.instagram_url) && (
+                  <p className="text-red-500 text-xs mt-2">
+                    Please enter a valid Instagram post URL (e.g. https://www.instagram.com/p/XXXXXXXXX/).
+                  </p>
+                )}
+
+                <button
+                  type="button"
+                  onClick={() => { setShowInstagram(false); setFormData(prev => ({ ...prev, instagram_url: '' })); }}
+                  className="mt-3 text-xs font-medium text-red-500 hover:text-red-600 transition-colors"
+                >
+                  Remove Instagram post
+                </button>
+              </div>
+            )}
+          </div>
+
+
           {/* Submit Button */}
           <div className="flex justify-end space-x-4">
             <button
