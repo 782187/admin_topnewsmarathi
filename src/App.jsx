@@ -5,6 +5,7 @@ import ForgotPassword from './pages/ForgotPassword';
 import ResetPassword from './pages/ResetPassword';
 import Dashboard from './pages/Dashboard';
 import ArticleList from './pages/ArticleList';
+import CategoryList from './pages/CategoryList';
 import ArticleForm from './pages/ArticleForm';
 import AdList from './pages/AdList';
 import AdForm from './pages/AdForm';
@@ -67,6 +68,14 @@ function App() {
               <ArticleList />
             </ProtectedRoute>
           } 
+        />
+        <Route
+          path="/admin/categories"
+          element={
+            <ProtectedRoute>
+              <CategoryList />
+            </ProtectedRoute>
+          }
         />
         <Route 
           path="/admin/articles/create" 
